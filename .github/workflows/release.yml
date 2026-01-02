@@ -1,0 +1,49 @@
+name: Build and Release
+
+# Робот проснется, когда ты создашь тег, начинающийся с 'v' (например, v1.0.1)
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: KubikCalc
+            asset_name: KubikCalc-linux
+          - os: windows-latest
+            artifact_name: KubikCalc.exe
+            asset_name: KubikCalc-windows.exe
+          - os: macos-latest
+            artifact_name: KubikCalc
+            asset_name: KubikCalc-macos
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Build project
+        run: cargo build --release
+
+      - name: Upload Binary
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          tag: ${{ github.ref }}git add .
