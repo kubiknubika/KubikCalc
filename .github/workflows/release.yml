@@ -1,16 +1,15 @@
-name: Build and Release
-
-# Робот проснется, когда ты создашь тег, начинающийся с 'v' (например, v1.0.1)
-on:
-  push:
-    tags:
-      - 'v*'
+name: Release
 
 permissions:
   contents: write
 
+on:
+  push:
+    tags:
+      - "v*"
+
 jobs:
-  build:
+  release:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -28,22 +27,28 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      # Используем более современный установщик Rust (без warnings)
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build project
         run: cargo build --release
 
-      - name: Upload Binary
-        uses: svenstaro/upload-release-action@v2
+      # Переименовываем файлы, чтобы было понятно, где Linux, а где Windows
+      # Для Linux и Mac
+      - name: Rename binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: mv target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
+
+      # Для Windows (там другая команда move)
+      - name: Rename binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: move target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
+
+      # Самый надежный загрузчик релизов
+      - name: Upload binaries to Release
+        uses: softprops/action-gh-release@v1
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/${{ matrix.artifact_name }}
-          asset_name: ${{ matrix.asset_name }}
-          tag: ${{ github.ref }}git add .
+          files: target/release/${{ matrix.asset_name }}
